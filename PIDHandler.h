@@ -6,6 +6,8 @@
 #include "motor_handler.h"
 #include "EEPROMHandler.h"
 
+extern bool regStart;
+
 struct MOTOR_DATA {
   float rFactor, pFactor, yFactor, aFactor;
   int throttle = 48; // 48 - 2047
@@ -113,7 +115,7 @@ void PIDBegin(); // incarca valorile din EEPROM in regulatoare si porneste task-
 void resetRegulators(); // reseteaza regulatoarele
 void setInternControlTarget(float pitch, float roll, float yaw, float altitude); // seteaza setPoint-ul intern
 void setExternControlTarget(float pitch, float roll, float yaw, float altitude); // seteaza setPoint-ul extern
-void updateInternRegulator(); // iteratia regulatoarelor
+void updateRegulator(); // iteratia regulatoarelor
 void updateExternRegulator(); // iteratia regulatoarelor
 void internRegulatorTask(void* pvParameters); // task-ul propriu-zis
 void externRegulatorTask(void* pvParameters); // task-ul propriu-zis

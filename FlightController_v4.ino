@@ -3,7 +3,7 @@
 #include "UdpHandler.h"
 #include "BatteryLevelReader.h"
 
-#define NETWORK_CONNECTION false // false pentru a opri comunicatia Wi-Fi
+#define NETWORK_CONNECTION true // false pentru a opri comunicatia Wi-Fi
 
 void sendRegDataAsJson(String reg);  // trimite json cu valorile regulatorului ales
 String createJson(); // creeazaun json cu toate datele necesare transmiterii udp
@@ -15,11 +15,12 @@ void UDPTask(void* parameters);
 
 void setup() {
   // Setează CPU la 260 MHz
+  Serial.begin(115200);
   setCpuFrequencyMhz(260);
   motor_init();
   delay(1000);
 
-  initDualSenseController(); // incepe conexiunea Bluetooth
+  //initDualSenseController(); // incepe conexiunea Bluetooth
   analogReadResolution(12); // rezolutie pe 12 biti pentru citirea ADC
   batteryReaderInit(); // porneste procesul de citit al bateriei
   if (NETWORK_CONNECTION) setupUDP(); // porneste conexiunea Wi-Fi
@@ -59,25 +60,24 @@ void UDPTask(void* parameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(10); // 20 ms = 50 Hz
-
     while (true) {
         if (NETWORK_CONNECTION) sendRecvFlightDataUDP();
-        processControllerInput();
-        vTaskDelay(10);
+        //processControllerInput();
+        vTaskDelay(20);
     }
 }
 
 String createJson() {
   String json = "{";
-  // datele pozitionale
-  // json += "\"roll\":" + String(flightData.sensorData.roll, 16) + ",";
-  // json += "\"pitch\":" + String(flightData.sensorData.pitch, 16) + ",";
-  // json += "\"yaw\":" + String(flightData.sensorData.yaw, 16) + ",";
-  // json += "\"altitude\":" + String(flightData.sensorData.altitude, 16) + ",";
-  json += "\"roll\":" +     String(motorFL_data.throttle) + ",";
-  json += "\"pitch\":" +    String(motorFR_data.throttle) + ",";
-  json += "\"yaw\":" +      String(motorBL_data.throttle) + ",";
-  json += "\"altitude\":" + String(motorBR_data.throttle) + ",";
+  // // datele pozitionale
+  json += "\"roll\":" + String(flightData.getRoll(), 16) + ",";
+  json += "\"pitch\":" + String(flightData.getPitch(), 16) + ",";
+  json += "\"yaw\":" + String(flightData.getYaw(), 16) + ",";
+  json += "\"altitude\":" + String(flightData.getAltitude(), 16) + ",";
+  // json += "\"roll\":" +     String(map(motorFR_data.throttle, 48, 2047, 0, 100)) + ",";
+  // json += "\"pitch\":" +    String(map(motorBR_data.throttle, 48, 2047, 0, 100)) + ",";
+  // json += "\"yaw\":" +      String(map(motorBL_data.throttle, 48, 2047, 0, 100)) + ",";
+  // json += "\"altitude\":" + String(map(motorFL_data.throttle, 48, 2047, 0, 100)) + ",";
   // datele RoC
   json += "\"roll_dt\":" +     String(flightData.getRollRate(), 16) + ",";
   json += "\"pitch_dt\":" +    String(flightData.getPitchRate(), 16) + ",";
@@ -105,8 +105,42 @@ float applyDeadzone(float val) {
 // gestioneaza fluxul de date udp
 void sendRecvFlightDataUDP() {
   if (readUDP()) {
-    vTaskSuspend(flightData.sensorTaskHandle);
+    //vTaskSuspend(flightData.sensorTaskHandle);
+    if (jsonDoc.containsKey("kbd")){
+      Serial.println("kbd");
+      int w = jsonDoc["w"];
+      int a = jsonDoc["a"];
+      int s = jsonDoc["s"];
+      int d = jsonDoc["d"];
+      int space = jsonDoc["space"];
+      int shift = jsonDoc["shift"];
 
+      // isMotorKill = space; 
+      if (shift) regStart = !regStart;
+
+      // recupereaza datele joystick-ului
+      float throttle = space * 300;
+      float brake    = shift * 300;
+      //float StickX   = w * 0.7;
+      //float StickY   = ControllerInputData.StickY;
+      //float StickRX  = ControllerInputData.StickRX;
+      // seteaza setpoint-ul pozitiei
+      // seteaza setpoint-ul vitezei unghiulare
+      setExternControlTarget((w - s) * 10, (a - d) * 10, 0, 0);
+      //setInternControlTarget((w - s) * 30, (a - d) * 30, 0, 0);
+      controlTarget.increaseAlt(throttle);
+      controlTarget.increaseAlt(brake);
+      return;
+    }
+    if (jsonDoc.containsKey("a"))
+    {
+      double a = jsonDoc["a"].as<double>();
+      Serial.println(a);
+
+      flightData.setA(a);
+      saveFloat(A_PT1_KEY, (float)a);
+      return;
+    }
     // daca primeste un json care contine valori pid
     String reg = jsonDoc["reg"].as<String>();
     // salveaza local valorile
@@ -136,7 +170,7 @@ void sendRecvFlightDataUDP() {
       return;
     }
     sendRegDataAsJson(reg); // trimite inapoi schimbarile efectuate
-    vTaskResume(flightData.sensorTaskHandle);
+    //vTaskResume(flightData.sensorTaskHandle);
   } else {
     // altfel trimite valorile masurate de senzori
     sendUDP(createJson());

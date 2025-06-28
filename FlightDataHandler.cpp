@@ -173,8 +173,8 @@ void FlightDataHandler::readIMUData() {
         
         // Calculate rate of change only if dt is reasonable
         if (dt > 0.0001 && dt < 1.0) { // Between 0.1ms and 1s
-          sensorRoC.roll = (sensorData.roll - lastSensorData.roll) / dt;
-          sensorRoC.pitch = (sensorData.pitch - lastSensorData.pitch) / dt;
+          sensorRoC.roll = roll_pt1.calculate((sensorData.roll - lastSensorData.roll) / dt);
+          sensorRoC.pitch = pitch_pt1.calculate((sensorData.pitch - lastSensorData.pitch) / dt);
           sensorRoC.yaw = (sensorData.yaw - lastSensorData.yaw) / dt;
           
           // Limit rate of change to reasonable values
@@ -205,7 +205,7 @@ void FlightDataHandler::readL0XData() {
     
     unsigned long now = micros();
     float dt = (float)(now - lastL0XRead) / 1e6; // us -> s
-    lastL0XRead = now;
+    lastL0XRead = now / 1e3;;
     
     // Calculate rate of change only if dt is reasonable
     if (dt > 0.01 && dt < 10.0) { // Between 10ms and 10s
@@ -220,10 +220,10 @@ void FlightDataHandler::readL0XData() {
 
 // apeleaza citirea ambilor senzori
 void FlightDataHandler::readData() {
-  unsigned long now = micros(); // timpul actual
+  unsigned long now = millis(); // timpul actual
   // citirea distantei are o frecventaredusa fata de citirea orientarii
-  if ((float)(now / 1e3) > L0X_READ_INTERVAL_MS + lastL0XRead) { 
-    readL0XData(); 
+  if ((float)(now) > L0X_READ_INTERVAL_MS + lastL0XRead) { 
+    readL0XData();
   } else { 
     readIMUData(); 
   }
@@ -298,6 +298,10 @@ float FlightDataHandler::getAltitudeRate() {
     xSemaphoreGive(dataMutex);
   }
   return isnan(value) || isinf(value) ? 0.0 : value;
+}
+void FlightDataHandler::setA(float val){
+  roll_pt1.setA(val);
+  pitch_pt1.setA(val);
 }
 // ... similar for pitch, yaw, altitude rates
 // ... similar for pitch, yaw, altitude rates

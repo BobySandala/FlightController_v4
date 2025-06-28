@@ -15,17 +15,11 @@ struct CONTROLLER_INPUT {
   bool dpadLeft;
   bool dpadRight;
 };
-
-// Global variable declaration
+// structura globala pentru stocarea input-ului
 extern CONTROLLER_INPUT ControllerInputData;
-
-// Public function declarations
-void initDualSenseController();
-void updateDualSenseController(void* params);
-void printControllerData();
-
-// Configuration constants
-extern const bool PAIR_CONTROLLER_WHILE_SETUP;
-extern const bool DEBUG_PRINT;
+void initDualSenseController(); // functia de initializare 
+void updateDualSenseController(void* params); // task-ul paralel
+void printControllerData(); // folosit pentru depanare
+extern const bool DEBUG_PRINT; // true / false pentru print
 
 #endif // DUALSENSE_HANDLER_H

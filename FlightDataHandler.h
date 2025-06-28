@@ -15,6 +15,20 @@ struct SensorData {
   double yaw, pitch, roll; // orientarea in cele 3 axe
   double altitude; // altitudinea, distanta pana la sol 
 };
+struct PT1 {
+  double a;
+  double yk_1;
+  double calculate(double u) 
+  {
+    double yk = a * yk_1 + (1 - a) * u;
+    yk_1 = yk;
+    return yk;
+  }
+  void setA(double val)
+  {
+    a = val;
+  }
+};
 // clasa responsabila pentru management
 class FlightDataHandler {
 public:
@@ -35,8 +49,11 @@ public:
   float getPitchRate(); 
   float getYawRate();
   float getAltitudeRate();
+  void setA(float val);
 // Add these member variables to your class:
 private:
+  PT1 roll_pt1;
+  PT1 pitch_pt1;
   SemaphoreHandle_t dataMutex;  // For protecting sensor data
   SemaphoreHandle_t i2cMutex;  // For protecting I2C bus access
   ICM_20948_I2C myICM; // obiect folosit pentru senzorul icm, apartine librariei icm20948

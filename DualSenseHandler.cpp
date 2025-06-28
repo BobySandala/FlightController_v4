@@ -7,7 +7,7 @@ CONTROLLER_INPUT ControllerInputData;
 
 // Configuration constants
 const bool PAIR_CONTROLLER_WHILE_SETUP = false;
-const bool DEBUG_PRINT = true;
+const bool DEBUG_PRINT = false;
 
 void printValueIfDebugPrint(String s, int16_t value);
 void updateControllerInputStruct();

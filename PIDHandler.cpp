@@ -1,5 +1,7 @@
 #include "PIDHandler.h"
 
+bool regStart;
+
 MOTOR_DATA motorFL_data;
 MOTOR_DATA motorFR_data;
 MOTOR_DATA motorBL_data;
@@ -28,11 +30,11 @@ void PIDBegin() {
   rollRegulatorIntern.key     = "ROLL"; // ROLL
   rollRegulatorIntern.outputMin = -30.0; rollRegulatorIntern.outputMax = 30.0;
   pitchRegulatorIntern.key    = "PITCH"; // PITCH
-  pitchRegulatorIntern.outputMin = -10.0; pitchRegulatorIntern.outputMax = 10.0;
+  pitchRegulatorIntern.outputMin = -30.0; pitchRegulatorIntern.outputMax = 30.0;
   yawRegulatorIntern.key      = "YAW"; // YAW
   yawRegulatorIntern.outputMin = -10.0; yawRegulatorIntern.outputMax = 10.0;
   altitudeRegulatorIntern.key = "ALTITUDE"; // ALTITUDE
-  altitudeRegulatorIntern.outputMin = -10.0; altitudeRegulatorIntern.outputMax = 10.0;
+  altitudeRegulatorIntern.outputMin = -50.0; altitudeRegulatorIntern.outputMax = 50.0;
   // regulatorul extern
   // seteaza cheia fiecarui regulator si valorile minime si maxime
   rollRegulatorExtern.key     = "ROLL_E"; // ROLL
@@ -42,7 +44,7 @@ void PIDBegin() {
   yawRegulatorExtern.key      = "YAW_E"; // YAW
   yawRegulatorExtern.outputMin = -10.0; yawRegulatorExtern.outputMax = 10.0; // Fixed: was yawRegulatorIntern
   altitudeRegulatorExtern.key = "ALTITUDE_E"; // ALTITUDE
-  altitudeRegulatorExtern.outputMin = -10.0; altitudeRegulatorExtern.outputMax = 10.0; // Fixed: was altitudeRegulatorIntern
+  altitudeRegulatorExtern.outputMin = -20.0; altitudeRegulatorExtern.outputMax = 20.0; // Fixed: was altitudeRegulatorIntern
   
   // regulatorul intern
   // incarca valorile constante ale regulatorului roll
@@ -63,9 +65,16 @@ void PIDBegin() {
   // incarca valorile constante ale regulatorului altitude
   loadRegulatorData(altitudeRegulatorExtern, ALT_PID_KP_E, ALT_PID_KI_E, ALT_PID_KD_E);
   printRegulatorsConstants();
+
+  flightData.setA((double)loadFloat(A_PT1_KEY, 0.0));
   
   // Wait a bit for sensors to stabilize
   delay(1000);
+
+  motorFL_data.setFact(-1, -1, +1, +1);
+  motorFR_data.setFact(+1, -1, -1, +1);
+  motorBL_data.setFact(-1, +1, -1, +1);
+  motorBR_data.setFact(+1, +1, +1, +1);
   
   // valorile initiale ale setpoint-ului yaw si altitudine
   controlTarget.setYaw(flightData.getYaw()); 
@@ -84,11 +93,15 @@ void PIDBegin() {
 }
 
 // actualizeaza PID-urile de viteza unghiulara
-void updateInternRegulator() {
+void updateRegulator() {
   // drona este la sol si nu se ridica
   // currentAltitude < 200 && controlTarget.altitude < 200 || 
-  if (isMotorKill) 
+  if (!regStart) 
   {
+    set_throttle(0, 48);
+    set_throttle(1, 48);
+    set_throttle(2, 48);
+    set_throttle(3, 48);
     resetRegulators(); // reseteaza regulatoarele
     return;
   }
@@ -106,12 +119,13 @@ void updateInternRegulator() {
     Serial.println("Warning: Invalid sensor data, skipping PID update");
     return;
   }
+  double outRoll, outPitch, outYaw, outAltitude;
   
   // calculeaza output-ul regulatorului extern
-  double outRoll     = rollRegulatorExtern.kp * (controlTarget.roll - currentRoll);
-  double outPitch    = pitchRegulatorExtern.kp * (controlTarget.pitch - currentPitch);
-  double outYaw      = yawRegulatorExtern.kp * (controlTarget.yaw - currentYaw);
-  double outAltitude = altitudeRegulatorExtern.kp * (controlTarget.altitude - currentAltitude);
+  outRoll     = rollRegulatorExtern.kp * (controlTarget.roll - currentRoll);
+  outPitch    = pitchRegulatorExtern.kp * (controlTarget.pitch - currentPitch);
+  outYaw      = yawRegulatorExtern.kp * (controlTarget.yaw - currentYaw);
+  outAltitude = altitudeRegulatorExtern.kp * (controlTarget.altitude - currentAltitude);
   
   // Validate extern regulator outputs
   if (isnan(outRoll) || isnan(outPitch) || isnan(outYaw) || isnan(outAltitude)) {
@@ -125,8 +139,7 @@ void updateInternRegulator() {
   controlTargetRoC.setYaw(outYaw); 
   controlTargetRoC.setAltitude(outAltitude);  
   
-  // obtine valorile reale derivate - NEED TO ADD GETTERS FOR RATE OF CHANGE
-  // For now, access through the class but this should be made thread-safe too
+  // obtine valorile reale derivate
   float currentRollRate = flightData.getRollRate();
   float currentPitchRate = flightData.getPitchRate();
   float currentYawRate = flightData.getYawRate();
@@ -171,10 +184,10 @@ void updateInternRegulator() {
   }
   
   //seteaza viteza motoarelor
-  // set_throttle(0, thFL);
-  // set_throttle(1, thBL);
-  // set_throttle(2, thBR);
-  // set_throttle(3, thFR);
+  set_throttle(0, thFL);
+  set_throttle(1, thBL);
+  set_throttle(2, thBR);
+  set_throttle(3, thFR);
 
   // Serial.print(outRoll); Serial.print(", ");
   // Serial.print(outPitch); Serial.print(", ");
@@ -191,7 +204,7 @@ void internRegulatorTask(void* pvParameters) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1000 / INTERN_REG_FREQ);
   while (true) {
-    updateInternRegulator();
+    updateRegulator();
     // Use proper task delay timing
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }

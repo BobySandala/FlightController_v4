@@ -13,7 +13,7 @@
 //#define WIFI_PASSWORD "a7ee06b7"
 
 #define DSHOT_THROTTLE_MIN 100
-#define DSHOT_THROTTLE_MAX 600
+#define DSHOT_THROTTLE_MAX 2047
 
 #define INTERN_REG_FREQ 150  // Hz
 #define EXTERN_REG_FREQ 100  // Hz
@@ -46,6 +46,8 @@
 #define STICK_DEADZONE 0.05
 
 //valori key pentru constantele fiecarui PID din bucla interna
+#define A_PT1_KEY "a_pt1_key"
+
 #define ROLL_PID_KP "roll_pid_kp"
 #define ROLL_PID_KI "roll_pid_ki"
 #define ROLL_PID_KD "roll_pid_kd"
